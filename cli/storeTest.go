@@ -14,6 +14,7 @@ func main() {
 		log.Fatalf("Unable to open store: %s", err)
 	}
 
+	// time for leader election
 	time.Sleep(3 * time.Second)
 
 	if err := store.Set("testKey", "testValue"); err != nil {
