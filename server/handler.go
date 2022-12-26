@@ -21,3 +21,14 @@ func (s *Server) Join(req JoinRequest, resp *JoinResponse) error {
 
 	return resp.Error
 }
+
+type OpenRequest struct {
+}
+
+type OpenResponse struct {
+}
+
+func (s *Server) Open(req OpenRequest, resp *OpenResponse) error {
+
+	return nil
+}

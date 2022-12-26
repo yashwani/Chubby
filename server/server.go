@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"net/rpc"
+	"time"
 )
 
 type Config struct {
@@ -60,5 +61,10 @@ func Run(config Config) {
 		log.Fatal(err)
 	}
 
+	time.Sleep(5 * time.Second)
+
+	println(server.store.Raft.LeaderWithID())
+
 	rpc.Accept(listener)
+
 }
