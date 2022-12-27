@@ -20,6 +20,12 @@ type Handle struct {
 
 	// Leader is the address of the cell's leader
 	Leader string
+
+	// client is the RPC client
+	client *rpc.Client
+
+	// quitSession is added to when the client wants to terminate its session with the chubby cell
+	quitSession chan bool
 }
 
 // Open creates Chubby client handler and starts a session with the Chubby cell.
@@ -56,11 +62,61 @@ func Open() (*Handle, error) {
 
 	// ping leader
 
+	var err error
+
+	handle.client, err = rpc.Dial("tcp", "localhost:7134")
+	if err != nil {
+		log.Printf("Unable to dial server at %s", handle.Leader)
+	}
+
+	request := CreateSessionRequest{
+		ID: "123",
+	}
+	response := &CreateSessionResponse{}
+
+	if err = handle.client.Call(rpcServerCreateSession, request, response); err != nil {
+		log.Fatalf("error herer1: %s", err)
+	}
+
+	log.Print(6)
+
+	done := make(chan bool)
+
+	go handle.KeepAlive(done)
+
 	//       if this succeeds, then spawn keepAlive goroutine
 
 	//       return successfully
 
 	return handle, nil
+}
+
+func (h *Handle) KeepAlive(done chan bool) {
+
+	for {
+		select {
+
+		case <-h.quitSession:
+
+			log.Printf("terminating session")
+
+			done <- true
+
+			return
+
+		default:
+			log.Printf("sending keep alive")
+			request := KeepAliveRequest{
+				ID: "123",
+			}
+
+			response := &KeepAliveResponse{}
+
+			if err := h.client.Call(rpcServerKeepAlive, request, response); err != nil {
+				log.Fatalf(err.Error())
+			}
+		}
+	}
 }
 
 // Close tears down the session with the Chubby cell thereby destroying the handle.

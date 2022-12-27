@@ -18,13 +18,23 @@ type Config struct {
 }
 
 type Server struct {
+
+	// store is the RAFT key-value store
 	store *store.Store
+
+	// sessions contains active and inactive sessions with clients
+	sessions map[string]bool
+
+	// extend determines which clients should have their session extended
+	extend map[string]chan time.Duration
 }
 
 func Run(config Config) {
 
 	server := &Server{
-		store: store.New(config.Inmem, config.RaftDir, config.RaftBind),
+		store:    store.New(config.Inmem, config.RaftDir, config.RaftBind),
+		sessions: make(map[string]bool),
+		extend:   make(map[string]chan time.Duration),
 	}
 
 	if err := server.store.Open(config.Join == "", config.NodeID); err != nil {
@@ -61,10 +71,5 @@ func Run(config Config) {
 		log.Fatal(err)
 	}
 
-	time.Sleep(5 * time.Second)
-
-	println(server.store.Raft.LeaderWithID())
-
 	rpc.Accept(listener)
-
 }

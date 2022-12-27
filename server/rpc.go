@@ -1,20 +1,46 @@
 package server
 
+// JoinRequest is the RPC request to join a Chubby cell.
+type JoinRequest struct {
+
+	// NodeID is the ID of the server wishing to join the Chubby cell
+	NodeID string
+
+	// addr is the address of the server wishing to join the Chubby cell
+	Addr string
+}
+
+// JoinResponse is the RPC response to joining a Chubby cell.
+type JoinResponse struct {
+	Error error
+}
+
 // LeaderRequest is the RPC request for if a server is a leader.
 type LeaderRequest struct {
 }
 
 // LeaderResponse is the RPC response that returns the leader's address.
 type LeaderResponse struct {
+
+	// Address of the leader
 	Address string
 }
 
-// Leader returns the address of the leader of the cell.
-func (s *Server) Leader(req LeaderRequest, resp *LeaderResponse) error {
+// KeepAliveRequest is the RPC request to keep the session alive.
+type KeepAliveRequest struct {
 
-	address, _ := s.store.Raft.LeaderWithID()
+	// ID of the client sending the request
+	ID string
+}
 
-	resp.Address = string(address)
+// KeepAliveResponse is the RPC response for the client's keepAlive request.
+type KeepAliveResponse struct {
+	Something bool
+}
 
-	return nil
+type CreateSessionRequest struct {
+	ID string
+}
+
+type CreateSessionResponse struct {
 }
