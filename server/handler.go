@@ -23,6 +23,7 @@ func (s *Server) Join(req JoinRequest, resp *JoinResponse) error {
 }
 
 type OpenRequest struct {
+	ClientID string
 }
 
 type OpenResponse struct {
