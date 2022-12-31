@@ -1,5 +1,7 @@
 package server
 
+import "time"
+
 // JoinRequest is the RPC request to join a Chubby cell.
 type JoinRequest struct {
 
@@ -31,15 +33,25 @@ type KeepAliveRequest struct {
 
 	// ID of the client sending the request
 	ID string
+
+	// Extension is the timeout extension on each keep alive
+	Extension time.Duration
+
+	// Buffer is the amount of time before timeout that the keep alive should be returned by the server
+	Buffer time.Duration
 }
 
 // KeepAliveResponse is the RPC response for the client's keepAlive request.
 type KeepAliveResponse struct {
-	Something bool
 }
 
 type CreateSessionRequest struct {
+
+	// ID of client sending the request
 	ID string
+
+	// Timeout is the amount of time that the session timeout is initialzed with
+	Timeout time.Duration
 }
 
 type CreateSessionResponse struct {

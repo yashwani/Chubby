@@ -3,6 +3,7 @@ package client
 import (
 	"log"
 	"net/rpc"
+	"time"
 )
 
 // cell is the network of servers in the chubby cell.
@@ -26,12 +27,20 @@ type Handle struct {
 
 	// quitSession is added to when the client wants to terminate its session with the chubby cell
 	quitSession chan bool
+
+	// timeout is the client's approximation of the server's lease timeout
+	timeout time.Time
+
+	// jeapardy
+	jeopardy bool
 }
 
 // Open creates Chubby client handler and starts a session with the Chubby cell.
 func Open() (*Handle, error) {
 
-	handle := &Handle{}
+	handle := &Handle{
+		quitSession: make(chan bool),
+	}
 
 	for server := range cell {
 
@@ -60,38 +69,72 @@ func Open() (*Handle, error) {
 		}
 	}
 
-	// ping leader
-
 	var err error
 
-	handle.client, err = rpc.Dial("tcp", "localhost:7134")
+	println(handle.Leader)
+
+	handle.client, err = rpc.Dial("tcp", "127.0.0.1:7134") // TODO convert from raftport to normal port later
 	if err != nil {
 		log.Printf("Unable to dial server at %s", handle.Leader)
 	}
 
 	request := CreateSessionRequest{
-		ID: "123",
+		ID:      "123",
+		Timeout: 12 * time.Second,
 	}
+
+	handle.timeout = time.Now().Add(12 * time.Second)
+
+	handle.monitorSession()
+
 	response := &CreateSessionResponse{}
 
 	if err = handle.client.Call(rpcServerCreateSession, request, response); err != nil {
 		log.Fatalf("error herer1: %s", err)
 	}
 
-	log.Print(6)
-
-	done := make(chan bool)
-
-	go handle.KeepAlive(done)
-
-	//       if this succeeds, then spawn keepAlive goroutine
-
-	//       return successfully
+	go handle.KeepAlive()
 
 	return handle, nil
 }
 
-func (h *Handle) KeepAlive(done chan bool) {
+func (h *Handle) monitorSession() {
+
+	ticker := time.NewTicker(time.Second)
+
+	go func() {
+
+		for {
+
+			now := <-ticker.C
+
+			if now.After(h.timeout) {
+
+				if h.jeopardy {
+
+					h.jeopardy = false
+
+					log.Print("Jeopard timeout, quitting session.")
+
+					h.quitSession <- true
+
+					return
+				}
+
+				log.Print("Entering jeopardy.")
+
+				h.jeopardy = true
+
+				h.timeout = h.timeout.Add(45 * time.Second)
+			}
+
+		}
+	}()
+}
+
+func (h *Handle) KeepAlive() {
+
+	lastSuccess := true
 
 	for {
 		select {
@@ -100,20 +143,30 @@ func (h *Handle) KeepAlive(done chan bool) {
 
 			log.Printf("terminating session")
 
-			done <- true
-
 			return
 
 		default:
 			log.Printf("sending keep alive")
 			request := KeepAliveRequest{
-				ID: "123",
+				ID:        "123",
+				Extension: 12 * time.Second,
+				Buffer:    2 * time.Second,
+			}
+
+			if lastSuccess {
+				h.timeout = h.timeout.Add(request.Extension)
 			}
 
 			response := &KeepAliveResponse{}
 
-			if err := h.client.Call(rpcServerKeepAlive, request, response); err != nil {
-				log.Fatalf(err.Error())
+			err := h.client.Call(rpcServerKeepAlive, request, response)
+			if err != nil {
+
+				log.Printf("keep alive failed: %s", err.Error())
+
+				lastSuccess = false
+
+				time.Sleep(time.Second)
 			}
 		}
 	}
