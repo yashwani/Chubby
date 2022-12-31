@@ -25,8 +25,11 @@ type Server struct {
 	// sessions contains active and inactive sessions with clients
 	sessions map[string]bool
 
+	// timeouts are the timeouts of client sessions
+	timeouts map[string]time.Time
+
 	// extend determines which clients should have their session extended
-	extend map[string]chan time.Duration
+	// extend map[string]chan time.Duration
 }
 
 func Run(config Config) {
@@ -34,7 +37,8 @@ func Run(config Config) {
 	server := &Server{
 		store:    store.New(config.Inmem, config.RaftDir, config.RaftBind),
 		sessions: make(map[string]bool),
-		extend:   make(map[string]chan time.Duration),
+		timeouts: make(map[string]time.Time),
+		// extend:   make(map[string]chan time.Duration),
 	}
 
 	if err := server.store.Open(config.Join == "", config.NodeID); err != nil {
@@ -71,5 +75,32 @@ func Run(config Config) {
 		log.Fatal(err)
 	}
 
+	server.clock()
+
 	rpc.Accept(listener)
+}
+
+func (s *Server) clock() {
+
+	ticker := time.NewTicker(time.Second)
+
+	go func() {
+
+		for {
+
+			now := <-ticker.C
+
+			for sessionID, ok := range s.sessions {
+
+				if !ok {
+					continue
+				}
+
+				if now.After(s.timeouts[sessionID]) {
+					s.sessions[sessionID] = false
+					log.Printf("Close session for %s", sessionID)
+				}
+			}
+		}
+	}()
 }

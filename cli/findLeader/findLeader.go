@@ -18,13 +18,17 @@ func main() {
 		log.Fatal(err)
 	}
 
+	println("finished open")
+
 	chubby.Close()
+
+	println("finished close")
 
 	for {
 		// Exit on signal.
 		select {
 		case <-quitCh:
-			break
+			return
 		default:
 			continue
 		}

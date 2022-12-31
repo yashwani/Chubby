@@ -83,7 +83,7 @@ func Open() (*Handle, error) {
 		Timeout: 12 * time.Second,
 	}
 
-	handle.timeout = time.Now().Add(12 * time.Second)
+	handle.timeout = time.Now().Add(request.Timeout)
 
 	handle.monitorSession()
 
@@ -94,6 +94,8 @@ func Open() (*Handle, error) {
 	}
 
 	go handle.KeepAlive()
+
+	println("here")
 
 	return handle, nil
 }
@@ -127,7 +129,6 @@ func (h *Handle) monitorSession() {
 
 				h.timeout = h.timeout.Add(45 * time.Second)
 			}
-
 		}
 	}()
 }
