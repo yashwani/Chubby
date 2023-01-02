@@ -96,7 +96,7 @@ func (s *Server) clock() {
 					continue
 				}
 
-				if now.After(s.timeouts[sessionID]) {
+				if now.After(s.timeouts[sessionID].Add(time.Second)) {
 					s.sessions[sessionID] = false
 					log.Printf("Close session for %s", sessionID)
 				}

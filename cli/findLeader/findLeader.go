@@ -2,6 +2,7 @@ package main
 
 import (
 	"Chubby/client"
+	"flag"
 	"log"
 	"os"
 	"os/signal"
@@ -13,7 +14,11 @@ func main() {
 	quitCh := make(chan os.Signal, 1)
 	signal.Notify(quitCh, os.Kill, os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	chubby, err := client.Open()
+	id := flag.String("id", "", "ID of the client")
+
+	flag.Parse()
+
+	chubby, err := client.Open(*id)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -24,13 +29,5 @@ func main() {
 
 	println("finished close")
 
-	for {
-		// Exit on signal.
-		select {
-		case <-quitCh:
-			return
-		default:
-			continue
-		}
-	}
+	<-quitCh
 }

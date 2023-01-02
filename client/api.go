@@ -33,13 +33,17 @@ type Handle struct {
 
 	// jeapardy
 	jeopardy bool
+
+	// client ID
+	id string
 }
 
 // Open creates Chubby client handler and starts a session with the Chubby cell.
-func Open() (*Handle, error) {
+func Open(id string) (*Handle, error) {
 
 	handle := &Handle{
 		quitSession: make(chan bool),
+		id:          id,
 	}
 
 	for server := range cell {
@@ -67,6 +71,8 @@ func Open() (*Handle, error) {
 
 			break
 		}
+
+		client.Close()
 	}
 
 	var err error
@@ -79,11 +85,13 @@ func Open() (*Handle, error) {
 	}
 
 	request := CreateSessionRequest{
-		ID:      "123",
-		Timeout: 12 * time.Second,
+		ID:      handle.id,
+		Timeout: 1 * time.Second,
 	}
 
 	handle.timeout = time.Now().Add(request.Timeout)
+
+	log.Printf("Timeout after creating session: %s", handle.timeout)
 
 	handle.monitorSession()
 
@@ -128,6 +136,7 @@ func (h *Handle) monitorSession() {
 				h.jeopardy = true
 
 				h.timeout = h.timeout.Add(45 * time.Second)
+
 			}
 		}
 	}()
@@ -137,7 +146,10 @@ func (h *Handle) KeepAlive() {
 
 	lastSuccess := true
 
+	var err error
+
 	for {
+
 		select {
 
 		case <-h.quitSession:
@@ -147,9 +159,30 @@ func (h *Handle) KeepAlive() {
 			return
 
 		default:
+
+			if h.jeopardy {
+
+				h.client, err = rpc.Dial("tcp", "127.0.0.1:7134") // TODO convert from raftport to normal port later
+
+				if err != nil {
+
+					log.Printf("Unable to dial server at %s", h.Leader)
+
+					time.Sleep(time.Second)
+
+					continue
+				}
+
+				h.jeopardy = false
+
+				h.timeout = time.Now().Add(time.Second)
+
+				lastSuccess = true
+			}
+
 			log.Printf("sending keep alive")
 			request := KeepAliveRequest{
-				ID:        "123",
+				ID:        h.id,
 				Extension: 12 * time.Second,
 				Buffer:    2 * time.Second,
 			}
@@ -157,6 +190,8 @@ func (h *Handle) KeepAlive() {
 			if lastSuccess {
 				h.timeout = h.timeout.Add(request.Extension)
 			}
+
+			log.Printf("Update timeout to %s", h.timeout)
 
 			response := &KeepAliveResponse{}
 

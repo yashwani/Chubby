@@ -1,7 +1,6 @@
 package server
 
 import (
-	"errors"
 	"log"
 	"time"
 )
@@ -28,49 +27,30 @@ func (s *Server) CreateSession(req CreateSessionRequest, resp *CreateSessionResp
 
 	s.sessions[req.ID] = true
 
-	// s.extend[req.ID] = make(chan time.Duration)
-
 	s.timeouts[req.ID] = time.Now().Add(req.Timeout)
 
-	// go func() {
-	// 	s.extend[req.ID] <- req.Timeout
-	// }()
-
-	// time.Sleep(1 * time.Second)
-
-	// go s.MaintainSession(req.ID)
+	log.Printf("Timeout after creating session: %s", s.timeouts[req.ID])
 
 	return nil
 }
 
-// func (s *Server) MaintainSession(ID string) {
-
-// 	for {
-
-// 		select {
-// 		case interval := <-s.extend[ID]:
-// 			log.Printf("Sleeping for %v seconds", int(interval))
-// 			time.Sleep(interval)
-// 		default:
-// 			log.Printf("Terminating session for client %v", ID)
-// 			s.sessions[ID] = false
-// 			return
-// 		}
-// 	}
-// }
-
 // KeepAlive extends the client's session by a pre-defined interval.
 func (s *Server) KeepAlive(req KeepAliveRequest, resp *KeepAliveResponse) error {
 
+	log.Printf("Received message from %v", req.ID)
+
 	if !s.sessions[req.ID] {
-		return errors.New("keep alive failed because current session not created or terminated")
+
+		s.sessions[req.ID] = true
+
+		s.timeouts[req.ID] = time.Now()
 	}
 
 	s.timeouts[req.ID] = s.timeouts[req.ID].Add(req.Extension)
 
 	log.Printf("Update %s timeout to %s", req.ID, s.timeouts[req.ID])
 
-	time.Sleep(req.Extension - req.Buffer)
+	time.Sleep(req.Extension)
 
 	log.Printf("Return keep alive to client %s", req.ID)
 
